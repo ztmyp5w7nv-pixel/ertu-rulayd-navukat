@@ -1,0 +1,1 @@
+# ertu-rulayd-navukat
