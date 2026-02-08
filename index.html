@@ -1,0 +1,274 @@
+<!DOCTYPE html>
+<html lang="tr">
+<head>
+    <meta charset="UTF-8">
+    <title>Av. Ertuğrul Aydın | Hukuk Simülasyonu</title>
+    <style>
+        :root { --black: #000; --white: #fff; --gray: #eee; }
+        * { box-sizing: border-box; }
+        body { 
+            background: var(--white); color: var(--black); 
+            font-family: 'Courier New', Courier, monospace; 
+            margin: 0; padding: 10px; height: 100vh; overflow: hidden;
+        }
+        #main-frame {
+            border: 5px double var(--black);
+            height: 95vh; display: grid;
+            grid-template-columns: 280px 1fr 300px;
+            grid-template-rows: 80px 1fr 180px;
+        }
+
+        /* Başlık Alanı */
+        .top-bar { 
+            grid-column: 1 / 4; border-bottom: 5px double var(--black);
+            display: flex; align-items: center; justify-content: space-between;
+            padding: 0 30px; background: var(--black); color: var(--white);
+        }
+
+        /* Sol Panel: Profil ve Ofis */
+        .side-left { 
+            grid-row: 2 / 4; border-right: 3px solid var(--black); 
+            padding: 15px; background: #fafafa;
+        }
+
+        /* Orta Panel: Olay Akışı */
+        .game-view { 
+            grid-column: 2 / 3; grid-row: 2 / 3; 
+            display: flex; flex-direction: column; position: relative;
+        }
+        .story-content { flex-grow: 1; padding: 30px; font-size: 1.2rem; overflow-y: auto; }
+        .action-grid { 
+            display: grid; grid-template-columns: 1fr 1fr; gap: 15px; 
+            padding: 20px; border-top: 1px solid var(--black); 
+        }
+
+        /* Sağ Panel: Aktif Dosya ve Kanunlar */
+        .side-right { 
+            grid-row: 2 / 4; border-left: 3px solid var(--black); 
+            padding: 15px; font-size: 0.9rem;
+        }
+
+        /* Alt Panel: Terminal */
+        .terminal { 
+            grid-column: 2 / 3; grid-row: 3 / 4; 
+            border-top: 3px solid var(--black); padding: 10px;
+            background: #f0f0f0; font-size: 0.8rem; overflow-y: scroll;
+        }
+
+        /* Bileşenler */
+        button {
+            background: var(--black); color: var(--white); border: 2px solid var(--black);
+            padding: 15px; cursor: pointer; font-family: inherit; font-weight: bold;
+            transition: all 0.2s;
+        }
+        button:hover { background: var(--white); color: var(--black); }
+        .stat-val { font-weight: bold; font-size: 1.1rem; float: right; }
+        .divider { border-bottom: 2px solid var(--black); margin: 10px 0; }
+        .legal-note { border-left: 4px solid var(--black); padding-left: 10px; margin: 10px 0; font-style: italic; }
+        .highlight { background: #000; color: #fff; padding: 0 4px; }
+    </style>
+</head>
+<body>
+
+<div id="main-frame">
+    <div class="top-bar">
+        <span style="font-size: 1.5rem;">⚖️ HUKUK VE ADALET PORTALI</span>
+        <span id="date-display">GÜN: 1 | SAAT: 09:00</span>
+    </div>
+
+    <div class="side-left">
+        <h3 style="text-align:center">AVUKAT PROFİLİ</h3>
+        <div class="divider"></div>
+        <div>İSİM: <span class="stat-val">Ertuğrul Aydın</span></div>
+        <div>ÜNVAN: <span class="stat-val" id="rank">Kıdemsiz Av.</span></div>
+        <div>İTİBAR: <span class="stat-val" id="rep">50</span></div>
+        <div>BAKİYE: <span class="stat-val" id="cash">15000</span></div>
+        <div class="divider"></div>
+        <h3 style="text-align:center">ENVANTER</h3>
+        <div id="inv-list" style="font-size: 0.8rem;">
+            - Vekaletname Örneği<br>- CMK Atama Yazısı
+        </div>
+        <div class="divider"></div>
+        <div id="office-status" style="font-size: 0.8rem; color: #666;">
+            Ofis Durumu: Küçük Büro<br>
+            Aylık Gider: 2.000 TL
+        </div>
+    </div>
+
+    <div class="game-view">
+        <div id="location-tag" style="padding: 10px; background: #eee; font-weight: bold; border-bottom: 1px solid #000;">📍 KONUM: MERKEZ OFİS</div>
+        <div class="story-content" id="story-box">
+            Hoş geldiniz Av. Ertuğrul Aydın. Bugün adli tatil sonrası ilk iş gününüz. Masanızda bekleyen dosyalar ve yanıtlamanız gereken dilekçeler var.
+        </div>
+        <div class="action-grid" id="btns">
+            </div>
+    </div>
+
+    <div class="side-right">
+        <h3 style="text-align:center">MEVZUAT SÖZLÜĞÜ</h3>
+        <div class="divider"></div>
+        <div id="legal-info">
+            <b>TMK Madde 1:</b> Kanun, sözüyle ve özüyle değindiği bütün konularda uygulanır.<br><br>
+            <b>İstinaf:</b> İlk derece mahkemesi kararlarının denetlenmesi süreci.
+        </div>
+        <div class="divider"></div>
+        <h3 style="text-align:center">AKTİF DOSYA</h3>
+        <div id="case-info" style="color:red">Henüz bir derdest dosya yok.</div>
+    </div>
+
+    <div class="terminal" id="logs">
+        <div>[SİSTEM] Av. Ertuğrul Aydın için oturum açıldı.</div>
+    </div>
+</div>
+
+<script>
+    let state = {
+        day: 1, hour: 9, rep: 50, cash: 15000, 
+        inv: ["Vekaletname"], rank: "Kıdemsiz Av.",
+        currentCase: null
+    };
+
+    const scenarios = {
+        home: {
+            loc: "MERKEZ OFİS",
+            text: "Masanızda üç önemli gelişme var. Kariyerinizin yönünü belirlemeniz gerekiyor. Hangi dosyaya odaklanacaksınız?",
+            options: [
+                { t: "Boşanma Davası (Çekişmeli)", next: "bosanma_start" },
+                { t: "Büyük Bir Yolsuzluk İhbarı", next: "yolsuzluk_start" },
+                { t: "Baro Seçimlerine Hazırlan", next: "baro_start" }
+            ]
+        },
+
+        // --- BOŞANMA DAVASI (UZUN SÜREÇ) ---
+        bosanma_start: {
+            loc: "MÜVEKKİL GÖRÜŞMESİ",
+            text: "Müvekkiliniz, eşinin mal kaçırdığını iddia ediyor. <span class='highlight'>İhtiyati Tedbir</span> talep etmeniz gerekiyor. Ancak karşı taraf çok nüfuzlu.",
+            options: [
+                { t: "Hemen Tedbir Talep Et", next: "bosanma_tedbir", cash: -1000 },
+                { t: "Önce Gizlice Delil Topla", next: "bosanma_delil", rep: 5 }
+            ]
+        },
+        bosanma_tedbir: {
+            loc: "AİLE MAHKEMESİ",
+            text: "Hakim tedbir talebinizi reddetti! Karşı taraf durumu öğrenip varlıklarını yurt dışına aktardı. Müvekkiliniz öfkeli.",
+            options: [
+                { t: "İstinafa Başvur (Süreç Uzat)", next: "bosanma_istinaf", cash: -2000 },
+                { t: "Müvekkili Sakinleştir", next: "home", rep: -10 }
+            ]
+        },
+        bosanma_istinaf: {
+            loc: "BÖLGE ADLİYE MAHKEMESİ",
+            text: "Aylar sonra İstinaf kararı bozdu! Haklılığınız kanıtlandı. Karşı tarafın banka hesapları donduruldu. Şimdi tazminat vakti.",
+            options: [
+                { t: "Ağır Tazminat İste", next: "home", cash: 25000, rep: 15 }
+            ]
+        },
+
+        // --- YOLSUZLUK DAVASI (TEHLİKELİ) ---
+        yolsuzluk_start: {
+            loc: "GİZLİ BULUŞMA",
+            text: "Anonim bir tanık, bir holdingin vergi kaçırdığına dair belgeler getirdi. Davayı açarsanız dev bir yapıyla savaşacaksınız.",
+            options: [
+                { t: "Suç Duyurusunda Bulun", next: "yolsuzluk_savcilik", rep: 30 },
+                { t: "Belgeleri Holding'e Sat", next: "yolsuzluk_ihanet", cash: 100000, rep: -60 }
+            ]
+        },
+        yolsuzluk_savcilik: {
+            loc: "CUMHURİYET SAVCILIĞI",
+            text: "Savcı dosyayı kabul etti ancak tehditler alıyorsunuz. Ofisinizin önünde siyah bir araç bekliyor.",
+            options: [
+                { t: "Korkmadan Devam Et", next: "yolsuzluk_final", rep: 50 },
+                { t: "Korumalar Kirala", next: "yolsuzluk_final", cash: -10000 }
+            ]
+        },
+        yolsuzluk_final: {
+            loc: "AĞIR CEZA MAHKEMESİ",
+            text: "Dava kazanıldı! Türkiye sizi konuşuyor. 'Yılın Hukukçusu' ödülüne adaysınız.",
+            options: [{ t: "Zirveye Dön", next: "home", cash: 50000 }]
+        },
+        yolsuzluk_ihanet: {
+            loc: "LÜKS RESTORAN",
+            text: "Parayı aldınız ama vicdanınız rahat değil. Baro hakkınızda gizli bir soruşturma yürütüyor.",
+            options: [{ t: "Ofise Dön", next: "home" }]
+        },
+
+        // --- BARO SİYASETİ ---
+        baro_start: {
+            loc: "BARO SOSYAL TESİSLERİ",
+            text: "Baro başkanlığına adaylığınızı koydunuz. Meslektaşlarınızın desteği için bir vaatte bulunmalısınız.",
+            options: [
+                { t: "Genç Avukatlara Maaş Desteği", next: "baro_secim", rep: 20, cash: -5000 },
+                { t: "Adliye Girişlerinde Protokol", next: "baro_secim", rep: 10 }
+            ]
+        },
+        baro_secim: {
+            loc: "BARO GENEL KURULU",
+            text: "Oylar sayılıyor... Ve yeni Baro Başkanı: AV. ERTUĞRUL AYDIN!",
+            options: [{ t: "Yeni Göreve Başla", next: "home", rep: 40 }]
+        }
+    };
+
+    function addLog(msg) {
+        const div = document.createElement('div');
+        div.innerHTML = `> [${state.hour}:00] ${msg}`;
+        const logs = document.getElementById('logs');
+        logs.prepend(div);
+    }
+
+    function render(key) {
+        const scene = scenarios[key];
+        if(!scene) return;
+
+        document.getElementById('location-tag').innerText = `📍 KONUM: ${scene.loc}`;
+        document.getElementById('story-box').innerHTML = scene.text;
+        
+        const btnContainer = document.getElementById('btns');
+        btnContainer.innerHTML = '';
+
+        scene.options.forEach(opt => {
+            const b = document.createElement('button');
+            b.innerText = opt.t;
+            b.onclick = () => {
+                if(opt.cash) state.cash += opt.cash;
+                if(opt.rep) state.rep += opt.rep;
+                
+                state.hour += 2;
+                if(state.hour >= 20) {
+                    state.hour = 9;
+                    state.day++;
+                    addLog("Gün bitti. Ofis giderleri (2.000 TL) tahsil edildi.");
+                    state.cash -= 2000;
+                }
+
+                updateStats();
+                addLog(`${opt.t} hamlesi yapıldı.`);
+                render(opt.next);
+            };
+            btnContainer.appendChild(b);
+        });
+    }
+
+    function updateStats() {
+        document.getElementById('rep').innerText = state.rep;
+        document.getElementById('cash').innerText = state.cash;
+        document.getElementById('date-display').innerText = `GÜN: ${state.day} | SAAT: ${state.hour}:00`;
+
+        if(state.rep > 120) state.rank = "Baro Başkanı";
+        else if(state.rep > 80) state.rank = "Kıdemli Ortak";
+        else if(state.rep > 40) state.rank = "Serbest Avukat";
+        else state.rank = "Stajyer / Soruşturmalı";
+        
+        document.getElementById('rank').innerText = state.rank;
+
+        if(state.cash < 0) {
+            document.getElementById('story-box').innerHTML = "<h1 style='color:red'>İFLAS ETTİNİZ</h1>Av. Ertuğrul Aydın, ofis masraflarını karşılayamadığı için barodan kaydı silindi. Oyun bitti.";
+            document.getElementById('btns').innerHTML = '<button onclick="location.reload()">YENİDEN BAŞLA</button>';
+        }
+    }
+
+    // Başlat
+    render('home');
+</script>
+
+</body>
+</html>
